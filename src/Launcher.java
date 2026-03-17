@@ -1,7 +1,7 @@
 public class Launcher {
 
     // Ajusta este valor para abrir 2 o mas jugadores en la misma maquina.
-    private static final int NUM_JUGADORES = 3;
+    private static final int NUM_JUGADORES = 5;
     // Pequena separacion para que no se encimen los dialogs de login al iniciar.
     private static final long DELAY_ENTRE_JUGADORES_MS = 300;
 
