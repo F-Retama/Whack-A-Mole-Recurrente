@@ -5,6 +5,11 @@ public class Launcher {
     // Pequena separacion para que no se encimen los dialogs de login al iniciar.
     private static final long DELAY_ENTRE_JUGADORES_MS = 300;
 
+    /*
+     * Lanza varias ventanas de JugadorMonstruo para pruebas locales.
+     * Entradas: args (no se usan).
+     * Rol: facilitar pruebas interactivas multijugador en una sola maquina.
+     */
     public static void main(String[] args) {
         if (NUM_JUGADORES < 2) {
             System.out.println("NUM_JUGADORES debe ser >= 2 para demostrar modo multijugador.");
@@ -18,6 +23,7 @@ public class Launcher {
             JugadorMonstruo.main(new String[0]);
 
             try {
+                // Pausa corta para que los dialogos de login no aparezcan encima.
                 Thread.sleep(DELAY_ENTRE_JUGADORES_MS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

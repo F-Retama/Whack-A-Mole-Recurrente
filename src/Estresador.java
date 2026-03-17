@@ -27,6 +27,10 @@ public class Estresador {
     // N, %exitoConexion, mediaConexion, desvConexion, mediaPrimerGolpe, desvPrimerGolpe
     private static final double[][] metricas = new double[10][6];
 
+    /*
+     * Punto de entrada del modo estres.
+     * Rol: ejecutar pruebas de carga para medir conexion y primer golpe.
+     */
     public static void main(String[] args) {
         System.out.println("Iniciando estresador. Asegurate de tener ServidorMonstruos levantado.");
 
@@ -34,6 +38,7 @@ public class Estresador {
             int n = N_VALUES[configIndex];
             System.out.println("\nConfiguracion N=" + n + " (R=" + R + ")");
 
+            // Matriz por configuracion: [jugador][3 metricas][repeticion].
             double[][][] mediciones = new double[n][3][R];
             ejecutarConfiguracion(n, mediciones);
             calcularMetricasDeConfiguracion(configIndex, n, mediciones);
@@ -47,6 +52,12 @@ public class Estresador {
         }
     }
 
+    /*
+     * Ejecuta una configuracion de carga para N jugadores y R repeticiones.
+     * Entradas: n (num jugadores concurrentes), mediciones (matriz N x 3 x R).
+     * Salida: llena mediciones con resultados por jugador y repeticion.
+     * Rol: orquestar fase de login y fase de primer golpe por repeticion.
+     */
     private static void ejecutarConfiguracion(int n, double[][][] mediciones) {
         for (int rep = 0; rep < R; rep++) {
             Thread[] workersConexion = new Thread[n];
@@ -68,6 +79,7 @@ public class Estresador {
                 }
             }
 
+            // Sólo quien conectó pasa a la medición de primer golpe.
             Thread[] workersGolpe = new Thread[n];
             for (int jugador = 0; jugador < n; jugador++) {
                 if (mediciones[jugador][IDX_CONEXION_EXITOSA][rep] > 0.0) {
@@ -95,6 +107,12 @@ public class Estresador {
         }
     }
 
+    /*
+     * Mide el login TCP de un jugador sintetico y guarda el resultado.
+     * Entradas: n, jugador, rep, mediciones.
+     * Salida: actualiza conexionExitosa y tiempoConexion en mediciones.
+     * Rol: producir datos base de disponibilidad y latencia de conexion.
+     */
     private static void medirConexionJugador(int n, int jugador, int rep, double[][][] mediciones) {
         String playerName = "estres_N" + n + "_J" + jugador + "_R" + rep;
 
@@ -134,6 +152,12 @@ public class Estresador {
         mediciones[jugador][IDX_TIEMPO_CONEXION_MS][rep] = tiempoConexionMs;
     }
 
+    /*
+     * Mide el tiempo del primer golpe (envio + ACK) para un jugador.
+     * Entradas: n, jugador, rep, mediciones.
+     * Salida: actualiza tiempo de primer golpe en mediciones.
+     * Rol: estimar latencia de la accion principal del juego bajo carga.
+     */
     private static void medirPrimerGolpeJugador(int n, int jugador, int rep, double[][][] mediciones) {
         String playerName = "estres_N" + n + "_J" + jugador + "_R" + rep;
 
@@ -168,6 +192,12 @@ public class Estresador {
         mediciones[jugador][IDX_TIEMPO_PRIMER_GOLPE_MS][rep] = tiempoPrimerGolpeMs;
     }
 
+    /*
+     * Resume una configuracion N en metricas agregadas.
+     * Entradas: configIndex (fila destino), n, mediciones (N x 3 x R).
+     * Salida: escribe una fila en metricas[configIndex][0..5].
+     * Rol: convertir datos crudos por jugador en estadisticos comparables.
+     */
     private static void calcularMetricasDeConfiguracion(int configIndex, int n, double[][][] mediciones) {
         int totalIntentos = n * R;
         int exitosConexion = 0;
@@ -250,11 +280,17 @@ public class Estresador {
         metricas[configIndex][4] = mediaHit;
         metricas[configIndex][5] = desvHit;
 
+        // Log resumido para seguir el avance de cada N durante la corrida.
         System.out.printf(Locale.US,
                 "  N=%d | exitoConexion=%.2f%% | conn(ms)=%.3f +- %.3f | hit(ms)=%.3f +- %.3f%n",
                 n, porcentajeExitoConexion, mediaConn, desvConn, mediaHit, desvHit);
     }
 
+    /*
+     * Exporta la matriz final de metricas a un CSV.
+     * Entradas: path (ruta destino), metricas (len(N_VALUES) x 6).
+     * Rol: dejar resultados listos para analisis externo.
+     */
     private static void exportarMetricasCsv(String path, double[][] metricas) throws IOException {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(path))) {
             writer.write("N,porcentaje_exito_conexion,media_conexion_ms,desv_conexion_ms,media_primer_golpe_ms,desv_primer_golpe_ms");

@@ -32,10 +32,19 @@ public class ServidorMonstruos {
     // Controla pausa entre anuncio de ganador y nuevo juego.
     private volatile boolean gamePaused = false;
 
+    /*
+     * Punto de entrada del servidor.
+     * Entradas: args (no se usan).
+     * Rol: arrancar la logica central del juego.
+     */
     public static void main(String[] args) {
         new ServidorMonstruos().start();
     }
 
+    /*
+     * Inicializa JMS, escuchadores TCP y ejecuta el bucle del juego.
+     * Rol: orquestar publicaciones de monstruos, pausas y reinicios de partida.
+     */
     public void start() {
         try {
             setupTopicProducer();
@@ -63,6 +72,7 @@ public class ServidorMonstruos {
                 }
 
                 if (!gamePaused) {
+                    // Se publica una casilla aleatoria y solo el primer golpe contara.
                     int cell = random.nextInt(9) + 1;
                     monsterActive = true;
                     publish("MONSTRUO:" + cell);
@@ -79,6 +89,10 @@ public class ServidorMonstruos {
         }
     }
 
+    /*
+     * Configura la conexion JMS y el productor al topico del juego.
+     * Rol: habilitar la difusion de eventos a todos los jugadores.
+     */
     private void setupTopicProducer() throws JMSException {
         ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory(BROKER_URL);
         jmsConnection = connectionFactory.createConnection();
@@ -89,6 +103,11 @@ public class ServidorMonstruos {
         producer = jmsSession.createProducer(destination);
     }
 
+    /*
+     * Publica un mensaje de texto en el topico del juego.
+     * Entradas: text (evento a difundir, por ejemplo INICIO o MONSTRUO:x).
+     * Rol: canal unico de difusion del estado global de la partida.
+     */
     private synchronized void publish(String text) {
         try {
             TextMessage message = jmsSession.createTextMessage();
@@ -100,6 +119,11 @@ public class ServidorMonstruos {
         }
     }
 
+    /*
+     * Registra un jugador si aun no existe en el marcador.
+     * Entradas: playerName (nombre recibido por login TCP).
+     * Rol: asegurar que cada jugador tenga puntaje inicial en el servidor.
+     */
     public void registerPlayer(String playerName) {
         if (playerName == null || playerName.trim().isEmpty()) {
             return;
@@ -109,6 +133,12 @@ public class ServidorMonstruos {
         System.out.println("Jugador registrado/login: " + playerName + " | score=" + scoreBoard.get(playerName));
     }
 
+    /*
+     * Intenta aplicar un golpe de un jugador sobre el monstruo actual.
+     * Entradas: playerName (jugador que envia el golpe).
+     * Salida: true si el golpe conto; false si fue rechazado.
+     * Rol: validar golpes y actualizar puntaje de forma sincronizada.
+     */
     public synchronized boolean tryHit(String playerName) {
         if (playerName == null || playerName.trim().isEmpty()) {
             return false;
@@ -127,6 +157,7 @@ public class ServidorMonstruos {
         // Aceptamos solo el primer golpe del monstruo actual.
         monsterActive = false;
 
+        // Punto critico: el score se incrementa solo despues de cerrar el monstruo.
         int newScore = scoreBoard.get(name) + 1;
         scoreBoard.put(name, newScore);
         System.out.println("Golpe valido de " + name + ". Nuevo score=" + newScore);
@@ -138,6 +169,11 @@ public class ServidorMonstruos {
         return true;
     }
 
+    /*
+     * Marca fin de ronda cuando alguien alcanza el puntaje objetivo.
+     * Entradas: winnerName (nombre del ganador).
+     * Rol: cerrar la ronda actual y preparar el reinicio.
+     */
     private void handleWinner(String winnerName) {
         // Publica al ganador de inmediato; el loop principal hara una pausa simple y reiniciara.
         gamePaused = true;
@@ -145,6 +181,10 @@ public class ServidorMonstruos {
         publish("GANADOR:" + winnerName);
     }
 
+    /*
+     * Reinicia a cero los puntajes de todos los jugadores registrados.
+     * Rol: preparar el estado del servidor despues de anunciar ganador.
+     */
     private void resetScoresForNewGame() {
         for (Map.Entry<String, Integer> entry : scoreBoard.entrySet()) {
             scoreBoard.put(entry.getKey(), 0);
@@ -152,6 +192,10 @@ public class ServidorMonstruos {
         System.out.println("Marcadores reiniciados para nuevo juego.");
     }
 
+    /*
+     * Cierra recursos JMS abiertos por el servidor.
+     * Rol: apagar el canal de mensajeria de forma ordenada.
+     */
     private void closeJms() {
         try {
             if (producer != null) {

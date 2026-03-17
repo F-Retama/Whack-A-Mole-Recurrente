@@ -10,15 +10,25 @@ public class EscuchadorGolpes extends Thread {
     private final int port;
     private final ServidorMonstruos server;
 
+    /*
+     * Crea el escuchador de golpes.
+     * Entradas: port (puerto TCP), server (servidor central).
+     * Rol: aceptar conexiones para reportar golpes.
+     */
     public EscuchadorGolpes(int port, ServidorMonstruos server) {
         this.port = port;
         this.server = server;
     }
 
     @Override
+    /*
+     * Abre el ServerSocket y delega cada cliente de golpes a un hilo.
+     * Rol: recibir trafico de golpes sin bloquear el servidor principal.
+     */
     public void run() {
         try (ServerSocket listenSocket = new ServerSocket(port)) {
             while (true) {
+                // Se crea un manejador por conexion para mantener concurrencia.
                 Socket clientSocket = listenSocket.accept();
                 new HitConnection(clientSocket, server).start();
             }
@@ -33,12 +43,23 @@ class HitConnection extends Thread {
     private final Socket clientSocket;
     private final ServidorMonstruos server;
 
+    /*
+     * Crea el manejador de una conexion de golpes.
+     * Entradas: clientSocket (socket del cliente), server (servidor del juego).
+     * Rol: procesar golpes de un cliente sobre una conexion persistente.
+     */
     public HitConnection(Socket clientSocket, ServidorMonstruos server) {
         this.clientSocket = clientSocket;
         this.server = server;
     }
 
     @Override
+    /*
+     * Lee nombres de jugador, intenta registrar el golpe y devuelve ACK.
+     * Entradas: playerName por UTF en el socket.
+     * Salida: UTF "HIT_OK" o "HIT_REJECTED" por cada intento.
+     * Rol: enlace de accion inmediata entre clientes y logica de puntaje.
+     */
     public void run() {
         try (DataInputStream in = new DataInputStream(clientSocket.getInputStream());
              DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())) {

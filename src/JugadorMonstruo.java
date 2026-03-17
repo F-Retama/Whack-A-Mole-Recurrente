@@ -57,10 +57,19 @@ public class JugadorMonstruo {
 
     private Timer monsterTimeoutTimer;
 
+    /*
+     * Punto de entrada del cliente interactivo.
+     * Entradas: args (no se usan).
+     * Rol: arrancar el cliente en el hilo de UI de Swing.
+     */
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new JugadorMonstruo().start());
     }
 
+    /*
+     * Ejecuta el flujo inicial del cliente: nombre, login, canal de golpes y UI.
+     * Rol: coordinar la inicializacion completa del cliente.
+     */
     private void start() {
         playerName = askPlayerName();
         if (playerName == null) {
@@ -81,6 +90,12 @@ public class JugadorMonstruo {
         startTopicConsumer();
     }
 
+    /*
+     * Pide el nombre del jugador por dialogo.
+     * Entradas: ninguna.
+     * Salida: nombre limpio o null si el usuario cancela/invalido.
+     * Rol: obtener identificador del jugador para login y golpes.
+     */
     private String askPlayerName() {
         JPanel loginPanel = new JPanel(new BorderLayout(8 * UI_SCALE, 8 * UI_SCALE));
         loginPanel.setPreferredSize(new Dimension(420 * UI_SCALE, 90 * UI_SCALE));
@@ -118,6 +133,11 @@ public class JugadorMonstruo {
         return name;
     }
 
+    /*
+     * Muestra un dialogo con tamano de fuente y panel escalados.
+     * Entradas: message, title, messageType.
+     * Rol: mostrar errores/avisos de forma legible para el jugador.
+     */
     private void showScaledMessageDialog(String message, String title, int messageType) {
         JLabel label = new JLabel(message);
         label.setFont(new Font("SansSerif", Font.PLAIN, 13 * UI_SCALE));
@@ -129,6 +149,12 @@ public class JugadorMonstruo {
         JOptionPane.showMessageDialog(null, panel, title, messageType);
     }
 
+    /*
+     * Hace login TCP enviando el nombre del jugador al servidor.
+     * Entradas: usa playerName y puertos configurados.
+     * Salida: true si la respuesta inicia con OK; false en error.
+     * Rol: registrar al cliente antes de iniciar la partida.
+     */
     private boolean doLogin() {
         Socket socket = null;
         try {
@@ -156,6 +182,10 @@ public class JugadorMonstruo {
         }
     }
 
+    /*
+     * Construye la ventana principal y el tablero 3x3.
+     * Rol: representar visualmente el estado del juego para el jugador.
+     */
     private void buildUI() {
         frame = new JFrame("Pegale al monstruo - " + playerName);
         // Cierra solo esta ventana para no afectar a otros jugadores abiertos en la misma JVM.
@@ -189,6 +219,7 @@ public class JugadorMonstruo {
                 if (e.getStateChange() == ItemEvent.DESELECTED
                         && monsterAvailable
                         && currentMonsterCell == cell) {
+                    // Punto critico: solo este evento se considera intento de golpe valido.
                     monsterAvailable = false;
                     sendHit();
                     clearBoard();
@@ -206,6 +237,12 @@ public class JugadorMonstruo {
         frame.setVisible(true);
     }
 
+    /*
+     * Abre el socket persistente para enviar golpes y recibir ACK.
+     * Entradas: ninguna.
+     * Salida: true si la conexion queda activa; false si falla.
+     * Rol: evitar abrir un socket nuevo por cada clic del jugador.
+     */
     private boolean connectHitChannel() {
         try {
             hitSocket = new Socket(SERVER_HOST, HIT_PORT);
@@ -219,6 +256,10 @@ public class JugadorMonstruo {
         }
     }
 
+    /*
+     * Se suscribe al topico JMS para recibir eventos del juego.
+     * Rol: sincronizar la UI local con el estado global del servidor.
+     */
     private void startTopicConsumer() {
         try {
             ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory(ActiveMQConnection.DEFAULT_BROKER_URL);
@@ -238,6 +279,12 @@ public class JugadorMonstruo {
         }
     }
 
+    /*
+     * Envia un golpe al servidor usando la conexion TCP persistente.
+     * Entradas: usa playerName como identificador del golpe.
+     * Salida: imprime ACK recibido (HIT_OK o HIT_REJECTED).
+     * Rol: notificar la accion principal del jugador en tiempo real.
+     */
     private void sendHit() {
         try {
             if (hitSocket == null || hitSocket.isClosed()) {
@@ -256,6 +303,10 @@ public class JugadorMonstruo {
         }
     }
 
+    /*
+     * Cierra streams y socket del canal de golpes.
+     * Rol: evitar fugas de recursos al cerrar la ventana del jugador.
+     */
     private void closeHitChannel() {
         try {
             if (hitIn != null) {
@@ -280,6 +331,12 @@ public class JugadorMonstruo {
         }
     }
 
+    /*
+     * Interpreta mensajes del topico y delega a la accion de UI correcta.
+     * Entradas: text (evento INICIO, MONSTRUO:x o GANADOR:nombre).
+     * Salida: actualiza estado visual del cliente.
+     * Rol: traducir eventos de servidor a comportamientos del jugador.
+     */
     private void handleTopicMessage(String text) {
         if (text == null) {
             return;
@@ -303,6 +360,12 @@ public class JugadorMonstruo {
         }
     }
 
+    /*
+     * Muestra un monstruo en la casilla indicada y activa ventana de golpe.
+     * Entradas: cell (casilla objetivo de 1 a 9).
+     * Salida: tablero actualizado y timer de expiracion activo.
+     * Rol: habilitar la accion de golpe durante un tiempo limitado.
+     */
     private void showMonster(int cell) {
         clearBoard();
 
@@ -331,6 +394,12 @@ public class JugadorMonstruo {
         monsterTimeoutTimer.start();
     }
 
+    /*
+     * Muestra al ganador de la ronda y deja la UI lista para la siguiente.
+     * Entradas: winner (nombre del jugador ganador).
+     * Salida: mensaje temporal y limpieza del tablero.
+     * Rol: reflejar el cierre de ronda anunciado por el servidor.
+     */
     private void showWinner(String winner) {
         monsterAvailable = false;
         clearBoard();
@@ -345,6 +414,10 @@ public class JugadorMonstruo {
         winnerTimer.start();
     }
 
+    /*
+     * Limpia el estado visual del tablero y la casilla activa.
+     * Rol: base de consistencia visual antes/despues de cada evento de juego.
+     */
     private void clearBoard() {
         updatingUI = true;
         for (JCheckBox box : boxes) {
@@ -356,6 +429,11 @@ public class JugadorMonstruo {
 
     private class GameMessageListener implements MessageListener {
         @Override
+        /*
+         * Recibe mensajes JMS y los pasa al hilo de Swing.
+         * Entradas: message (mensaje del topico).
+         * Rol: puente seguro entre JMS (background) y renderizado Swing.
+         */
         public void onMessage(Message message) {
             TextMessage textMessage = (TextMessage) message;
             try {
