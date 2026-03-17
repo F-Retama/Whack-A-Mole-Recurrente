@@ -1,8 +1,9 @@
 # Proyecto Alpha - Whack A Mole Recurrente
 
 ## 0) Evaluación experimental de desempeño
-Para el entregable de la evaluación se  incluyó el reporte en el mismo github bajo el nombre:
-`Reporte_Pegale_al_monstruo.pdf`
+Para el entregable de la evaluación se  incluyó el reporte en el mismo github:
+
+**[Reporte_Pegale_al_monstruo.pdf](Reporte_Pegale_al_monstruo.pdf)**
 
 ## 1) Contenido de cada archivo en `src/`
 
